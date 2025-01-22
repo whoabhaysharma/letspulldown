@@ -1,5 +1,6 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import DesktopWarning from "@/components/DesktopWarning";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -22,7 +23,12 @@ export default function RootLayout({ children }) {
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <div className="hidden sm:flex w-full h-screen items-center justify-center">
+          <DesktopWarning/>
+        </div>
+        <div className="w-full">
+          {children}
+        </div>
       </body>
     </html>
   );
