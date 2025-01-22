@@ -6,6 +6,10 @@ import { Label } from "@/components/ui/label";
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
+import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { auth } from "@/lib/firebase-client";
+import axios from "axios";
+import { useRouter } from "next/navigation";
 
 const Signup = () => {
     const [step, setStep] = useState("signup");
@@ -13,6 +17,8 @@ const Signup = () => {
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
     const [otp, setOtp] = useState("");
+
+    const router = useRouter()
 
     // Dummy function to handle signup
     const handleSignup = () => {
@@ -27,6 +33,27 @@ const Signup = () => {
         alert("OTP verified! Account created successfully.");
         // Redirect to login or dashboard
     };
+
+    const continueWithGoogle = async () => {
+        console.log('CONTINUE WITH GOOGLE', auth)
+        const provider = new GoogleAuthProvider()
+        try {
+            const userInfo = await signInWithPopup(auth, provider);
+            const idToken = await userInfo.user.getIdToken()
+            const resp = await axios.get('/api/auth/cookieToken', {
+                headers: {
+                    Authorization: `Bearer ${idToken}`
+                }
+            })
+
+            if (resp.status === 200) {
+                router.push("/")
+            }
+
+        } catch (error) {
+            console.log(error, 'ERROR')
+        }
+    }
 
     return (
         <div className="flex flex-col min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
@@ -111,7 +138,7 @@ const Signup = () => {
 
                         {/* Continue with Google */}
                         <Button
-                            onClick={() => { }}
+                            onClick={() => continueWithGoogle()}
                             variant="outline"
                             className="w-full flex items-center justify-center space-x-2"
                         >
