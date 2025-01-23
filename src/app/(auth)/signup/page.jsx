@@ -21,8 +21,25 @@ const Signup = () => {
         confirmPassword: "",
         firebase: "",
     });
+    const [loading, setLoading] = useState(false); // Loading state
 
     const router = useRouter();
+
+    // Convert Firebase error codes to human-readable messages
+    const getHumanReadableError = (errorCode) => {
+        switch (errorCode) {
+            case "auth/invalid-email":
+                return "The email address is invalid.";
+            case "auth/email-already-in-use":
+                return "An account with this email already exists.";
+            case "auth/weak-password":
+                return "Password should be at least 6 characters.";
+            case "auth/operation-not-allowed":
+                return "Email/password accounts are not enabled.";
+            default:
+                return "An error occurred. Please try again.";
+        }
+    };
 
     // Validate form fields
     const validateForm = () => {
@@ -67,6 +84,9 @@ const Signup = () => {
         // Validate form fields
         if (!validateForm()) return;
 
+        setLoading(true); // Start loading
+        setErrors({ email: "", password: "", confirmPassword: "", firebase: "" }); // Clear previous errors
+
         try {
             // Create user with email and password
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
@@ -84,13 +104,18 @@ const Signup = () => {
             console.error("Error during signup:", error);
             setErrors((prev) => ({
                 ...prev,
-                firebase: error.message, // Show Firebase error message
+                firebase: getHumanReadableError(error.code), // Show human-readable error message
             }));
+        } finally {
+            setLoading(false); // Stop loading
         }
     };
 
     // Continue with Google
     const continueWithGoogle = async () => {
+        setLoading(true); // Start loading
+        setErrors({ email: "", password: "", confirmPassword: "", firebase: "" }); // Clear previous errors
+
         const provider = new GoogleAuthProvider();
         try {
             const userInfo = await signInWithPopup(auth, provider);
@@ -110,8 +135,10 @@ const Signup = () => {
             console.error("Error during Google sign-in:", error);
             setErrors((prev) => ({
                 ...prev,
-                firebase: error.message, // Show Firebase error message
+                firebase: getHumanReadableError(error.code), // Show human-readable error message
             }));
+        } finally {
+            setLoading(false); // Stop loading
         }
     };
 
@@ -156,6 +183,7 @@ const Signup = () => {
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             className="w-full"
+                            disabled={loading} // Disable input while loading
                         />
                         {errors.email && (
                             <p className="text-sm text-red-600">{errors.email}</p>
@@ -174,6 +202,7 @@ const Signup = () => {
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             className="w-full"
+                            disabled={loading} // Disable input while loading
                         />
                         {errors.password && (
                             <p className="text-sm text-red-600">{errors.password}</p>
@@ -192,6 +221,7 @@ const Signup = () => {
                             value={confirmPassword}
                             onChange={(e) => setConfirmPassword(e.target.value)}
                             className="w-full"
+                            disabled={loading} // Disable input while loading
                         />
                         {errors.confirmPassword && (
                             <p className="text-sm text-red-600">{errors.confirmPassword}</p>
@@ -199,8 +229,12 @@ const Signup = () => {
                     </div>
 
                     {/* Sign Up Button */}
-                    <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700">
-                        Sign Up
+                    <Button
+                        type="submit"
+                        className="w-full bg-blue-600 hover:bg-blue-700"
+                        disabled={loading} // Disable button while loading
+                    >
+                        {loading ? "Signing up..." : "Sign Up"}
                     </Button>
                 </form>
 
@@ -216,6 +250,7 @@ const Signup = () => {
                     onClick={continueWithGoogle}
                     variant="outline"
                     className="w-full flex items-center justify-center space-x-2"
+                    disabled={loading} // Disable button while loading
                 >
                     <Image
                         src="/google_logo.webp" // Replace with your Google icon path
@@ -223,7 +258,7 @@ const Signup = () => {
                         width={20}
                         height={20}
                     />
-                    <span>Continue with Google</span>
+                    <span>{loading ? "Signing up..." : "Continue with Google"}</span>
                 </Button>
 
                 {/* Login Link */}
