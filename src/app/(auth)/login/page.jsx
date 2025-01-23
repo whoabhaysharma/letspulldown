@@ -149,6 +149,18 @@ const Login = () => {
                             disabled={loading} // Disable input while loading
                         />
                     </div>
+
+                    {/* Forgot Password Link */}
+                    <div className="text-right">
+                        <Link
+                            href="/forgotPassword"
+                            className="text-sm text-blue-600 hover:underline"
+                        >
+                            Forgot Password?
+                        </Link>
+                    </div>
+
+                    {/* Login Button */}
                     <Button
                         type="submit"
                         className="w-full bg-blue-600 hover:bg-blue-700"
