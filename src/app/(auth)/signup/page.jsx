@@ -35,16 +35,19 @@ const Signup = () => {
     };
 
     const continueWithGoogle = async () => {
-        console.log('CONTINUE WITH GOOGLE', auth)
         const provider = new GoogleAuthProvider()
         try {
             const userInfo = await signInWithPopup(auth, provider);
             const idToken = await userInfo.user.getIdToken()
-            const resp = await axios.get('/api/auth/cookieToken', {
-                headers: {
-                    Authorization: `Bearer ${idToken}`
+            // Send the request
+            const resp = await axios.get(
+                "/api/auth/cookieToken", // URL
+                {
+                    headers: {
+                        Authorization: `Bearer ${idToken}`, // Ensure this is correct
+                    },
                 }
-            })
+            );
 
             if (resp.status === 200) {
                 router.push("/")
