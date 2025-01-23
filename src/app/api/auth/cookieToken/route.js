@@ -51,14 +51,5 @@ export async function GET(request) {
         path: "/",
     });
 
-    return NextResponse.json({ 
-        status: 200, 
-        data: {
-            uid,
-            name,
-            email,
-            picture,
-            role: "gym_owner"
-        }
-    });
+    return NextResponse.redirect("/");
 }

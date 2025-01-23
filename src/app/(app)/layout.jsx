@@ -7,7 +7,6 @@ export default async function Layout({ children }) {
   const session = cookieStore.get("session");
 
   if (!session?.value) {
-    // If no session cookie is present, redirect to the login page
     redirect("/login");
   }
 
@@ -15,11 +14,8 @@ export default async function Layout({ children }) {
     // Verify the session cookie using Firebase Admin SDK
     const user = await auth.verifySessionCookie(session.value);
   } catch (error) {
-    console.error("Session verification failed:", error);
-    // If verification fails, redirect to the login page
     redirect("/login");
   }
 
-  // If verification is successful, render the children components
   return children;
 }
