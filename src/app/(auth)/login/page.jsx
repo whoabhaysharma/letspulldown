@@ -9,6 +9,7 @@ import { useState } from "react";
 import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { auth } from "@/lib/firebase-client";
 import { useRouter } from "next/navigation";
+import axios from "axios";
 
 const Login = () => {
     const [email, setEmail] = useState("");
@@ -62,6 +63,12 @@ const Login = () => {
                 return;
             }
 
+            await axios.get('/api/auth/cookieToken', {
+                headers: {
+                    Authorization: `Bearer ${await user.getIdToken()}`,
+                },
+            })
+
             // Redirect to home page after successful login
             router.push("/");
         } catch (error) {
@@ -81,6 +88,12 @@ const Login = () => {
         try {
             const userCredential = await signInWithPopup(auth, provider);
             const user = userCredential.user;
+
+            await axios.get('/api/auth/cookieToken', {
+                headers: {
+                    Authorization: `Bearer ${await user.getIdToken()}`,
+                },
+            })
 
             // Redirect to home page after successful login
             router.push("/");
