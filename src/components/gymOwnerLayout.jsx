@@ -1,10 +1,16 @@
 "use client";
 
-import { Home, Settings, Bell, User, BarChart, Plus } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { Home, Settings, Bell, User, BarChart } from "lucide-react";
+import { useRouter, usePathname } from "next/navigation";
 
 const GymOwnerLayout = ({ children }) => {
   const router = useRouter();
+  const pathname = usePathname(); // Get the current route
+
+  // Function to determine if a navigation item is active
+  const isActive = (route) => {
+    return pathname === route;
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -19,7 +25,7 @@ const GymOwnerLayout = ({ children }) => {
 
             {/* Right Section - Notifications */}
             <button
-              onClick={() => router.push("/notifications")}
+              onClick={() => router.push("/admin/notifications")}
               className="p-2 rounded-full hover:bg-gray-100 transition-colors relative"
             >
               <Bell className="w-5 h-5 text-gray-700" />
@@ -32,9 +38,7 @@ const GymOwnerLayout = ({ children }) => {
       </header>
 
       {/* Main Content Area */}
-      <main className="pt-14 pb-16 px-4 max-w-2xl mx-auto">
-        {children}
-      </main>
+      <main className="pt-14 pb-16 px-4 max-w-2xl mx-auto">{children}</main>
 
       {/* Bottom Navigation */}
       <nav className="fixed bottom-0 w-full bg-white border-t border-gray-100 shadow-lg z-40">
@@ -42,8 +46,12 @@ const GymOwnerLayout = ({ children }) => {
           <div className="h-16 flex items-center justify-around">
             {/* Home */}
             <button
-              onClick={() => router.push("/")}
-              className="flex flex-col items-center justify-center p-2 rounded-lg text-gray-500 hover:text-blue-600 transition-colors"
+              onClick={() => router.push("/admin")}
+              className={`flex flex-col items-center justify-center p-2 rounded-lg transition-colors ${
+                isActive("/admin")
+                  ? "text-blue-600" // Active style
+                  : "text-gray-500 hover:text-blue-600" // Inactive style
+              }`}
             >
               <Home className="w-6 h-6" />
               <span className="text-xs mt-1">Home</span>
@@ -51,8 +59,12 @@ const GymOwnerLayout = ({ children }) => {
 
             {/* Analytics */}
             <button
-              onClick={() => router.push("/analytics")}
-              className="flex flex-col items-center justify-center p-2 rounded-lg text-gray-500 hover:text-blue-600 transition-colors"
+              onClick={() => router.push("/admin/analytics")}
+              className={`flex flex-col items-center justify-center p-2 rounded-lg transition-colors ${
+                isActive("/admin/analytics")
+                  ? "text-blue-600" // Active style
+                  : "text-gray-500 hover:text-blue-600" // Inactive style
+              }`}
             >
               <BarChart className="w-6 h-6" />
               <span className="text-xs mt-1">Analytics</span>
@@ -60,8 +72,12 @@ const GymOwnerLayout = ({ children }) => {
 
             {/* Profile */}
             <button
-              onClick={() => router.push("/profile")}
-              className="flex flex-col items-center justify-center p-2 rounded-lg text-gray-500 hover:text-blue-600 transition-colors"
+              onClick={() => router.push("/admin/profile")}
+              className={`flex flex-col items-center justify-center p-2 rounded-lg transition-colors ${
+                isActive("/admin/profile")
+                  ? "text-blue-600" // Active style
+                  : "text-gray-500 hover:text-blue-600" // Inactive style
+              }`}
             >
               <User className="w-6 h-6" />
               <span className="text-xs mt-1">Profile</span>
@@ -69,8 +85,12 @@ const GymOwnerLayout = ({ children }) => {
 
             {/* Settings */}
             <button
-              onClick={() => router.push("/settings")}
-              className="flex flex-col items-center justify-center p-2 rounded-lg text-gray-500 hover:text-blue-600 transition-colors"
+              onClick={() => router.push("/admin/settings")}
+              className={`flex flex-col items-center justify-center p-2 rounded-lg transition-colors ${
+                isActive("/admin/settings")
+                  ? "text-blue-600" // Active style
+                  : "text-gray-500 hover:text-blue-600" // Inactive style
+              }`}
             >
               <Settings className="w-6 h-6" />
               <span className="text-xs mt-1">Settings</span>

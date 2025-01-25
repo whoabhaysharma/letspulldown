@@ -18,11 +18,5 @@ export default async function Layout({ children }) {
     redirect("/login");
   }
 
-  return (
-    <GymOwnerLayout>
-      <div className="w-full pt-2">
-        {children}
-      </div>
-    </GymOwnerLayout>
-  );
+  return children;
 }
