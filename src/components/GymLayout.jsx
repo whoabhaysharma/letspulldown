@@ -14,7 +14,7 @@ const GymLayout = ({ children }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="w-full h-screen bg-gray-50">
       {/* Header */}
       <header className="fixed top-0 w-full bg-white shadow-sm z-50 border-b border-gray-100">
         <div className="max-w-2xl mx-auto px-4">
@@ -35,7 +35,7 @@ const GymLayout = ({ children }) => {
         </div>
       </header>
 
-      <main className="pt-14 pb-16 px-4 max-w-2xl mx-auto">{children}</main>
+      <main className="flex flex-1 px-4 py-14 max-w-2xl mx-auto w-full relative">{children}</main>
 
       <nav className="fixed bottom-0 w-full bg-white border-t border-gray-100 shadow-lg z-40">
         <div className="max-w-2xl mx-auto px-4">
