@@ -1,55 +1,58 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { auth, db } from "@/lib/firebase-admin"; // Import Firestore (db) along with auth
+import { auth, db } from "@/lib/firebase-admin";
 
 export async function GET(request) {
-    const authHeader = request.headers.get("Authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    try {
+        const authHeader = request.headers.get("Authorization");
+        if (!authHeader?.startsWith("Bearer ")) {
+            return NextResponse.json(
+                { error: "Missing or invalid authorization header" },
+                { status: 401 }
+            );
+        }
+
+        const idToken = authHeader.split("Bearer ")[1];
+        const decodedToken = await auth.verifyIdToken(idToken);
+        const { uid, name = "", picture = "", email } = decodedToken;
+
+        // User handling
+        const userSnapshot = await db.collection("users").where("uid", "==", uid).get();
+        if (userSnapshot.empty) {
+            await db.collection("users").add({
+                uid,
+                name,
+                email,
+                picture,
+                role: "gym_owner",
+                created: new Date().toISOString()
+            });
+        }
+
+        // Create session cookie
+        const expiresIn = 60 * 60 * 24 * 5 * 1000; // 5 days
+        const sessionCookie = await auth.createSessionCookie(idToken, { expiresIn });
+
+        // Set cookie in response
+        cookies().set("session", sessionCookie, {
+            maxAge: expiresIn / 1000,
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "lax",
+            path: "/",
+        });
+
+        // Return success response with user data
         return NextResponse.json(
-            { error: "Missing or invalid authorization header" },
-            { status: 401 }
+            { success: true, user: { uid, name, email, picture } },
+            { status: 200 }
+        );
+
+    } catch (error) {
+        console.error("Authentication error:", error);
+        return NextResponse.json(
+            { error: error.message || "Authentication failed" },
+            { status: 500 }
         );
     }
-
-    const idToken = authHeader.split("Bearer ")[1];
-
-
-    // Verify the token with Firebase Admin
-    const decodedToken = await auth.verifyIdToken(idToken);
-    const { uid, name = "", picture = "", email } = decodedToken; // Extract UID from the decoded token
-
-    // Check if user already exists
-    const userSnapshot = await db.collection("users").where("uid", "==", uid).get();
-    
-    let docRef;
-    if (userSnapshot.empty) {
-        // User doesn't exist, create new document
-        docRef = await db.collection("users").add({
-            uid,
-            name,
-            email,
-            picture,
-            role: "gym_owner"
-        });
-    } else {
-        // User exists, use existing document reference
-        docRef = userSnapshot.docs[0].ref;
-    }
-
-    const expiresIn = 60 * 60 * 24 * 5 * 1000; // 5 days in milliseconds
-    const sessionCookie = await auth.createSessionCookie(idToken, {
-        expiresIn,
-    });
-
-    // Set cookie in response
-    const cookieStore = await cookies(); // Get the cookie store
-    cookieStore.set("session", sessionCookie, {
-        maxAge: expiresIn / 1000, // maxAge should be in seconds
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        path: "/",
-    });
-
-    return NextResponse.redirect("/");
 }
