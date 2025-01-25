@@ -1,3 +1,4 @@
+import GymOwnerLayout from "@/components/gymOwnerLayout";
 import { auth } from "@/lib/firebase-admin";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -17,5 +18,11 @@ export default async function Layout({ children }) {
     redirect("/login");
   }
 
-  return children;
+  return (
+    <GymOwnerLayout>
+      <div className="w-full pt-2">
+        {children}
+      </div>
+    </GymOwnerLayout>
+  );
 }
