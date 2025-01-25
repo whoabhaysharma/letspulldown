@@ -1,8 +1,11 @@
+import GymLayout from "@/components/GymLayout";
+
 export default function Layout({children}) {
     return (
-        <div>
-            <h1>Layotue for gym</h1>
-            {children}
-        </div>
+        <GymLayout>
+            <div className="w-full pt-2">
+                {children}
+            </div>
+        </GymLayout>
     )
 }
