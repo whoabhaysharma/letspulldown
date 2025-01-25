@@ -71,11 +71,12 @@ const Login = () => {
 
             // Redirect to home page after successful login
             router.push("/");
+            setLoading(false)
         } catch (error) {
             console.error("Error during login:", error);
             setError(getHumanReadableError(error.code)); // Show human-readable error message
         } finally {
-            setLoading(false); // Stop loading
+            // setLoading(false); // Stop loading
         }
     };
 
