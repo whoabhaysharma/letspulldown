@@ -1,64 +1,110 @@
 'use server';
 
-import { cookies, headers } from "next/headers";
-import { auth, db } from "./firebase-admin"; // Ensure this imports your initialized Firebase Admin SDK
+import { cookies, headers } from 'next/headers';
+import { auth, db } from './firebase-admin';
 
-// Function to get the current user based on session cookie
+/**
+ * Retrieves the current user based on the session cookie.
+ *
+ * @returns {Promise<Object|null>} An object containing the user’s id and data, or null if not found.
+ */
 export async function getCurrentUser() {
-    const cookieToken = (await cookies()).get("session")?.value;
-    if (!cookieToken) {
-        return null; // No session cookie found
-    }
+  const sessionCookie = (await cookies()).get('session')?.value;
+  if (!sessionCookie) return null;
 
-    try {
-        const decodedToken = await auth.verifySessionCookie(cookieToken);
-        const uid = decodedToken.uid; // Extract the user's UID from the decoded token
+  try {
+    const decodedToken = await auth.verifySessionCookie(sessionCookie);
+    const uid = decodedToken.uid;
 
-        // Use Firestore modular API to get user document
-        const userRef = db.collection("users").where("uid", "==", uid).limit(1);
-        const userSnapshot = await userRef.get();
+    const userQuerySnapshot = await db
+      .collection('users')
+      .where('uid', '==', uid)
+      .limit(1)
+      .get();
 
-        if (userSnapshot.empty) {
-            return null; // No user found
-        }
-        
-        return userSnapshot.docs[0].ref; // Return the reference of the found user
-    } catch (error) {
-        console.error("Error verifying session cookie:", error);
-        return null; // Handle error appropriately
-    }
+    if (userQuerySnapshot.empty) return null;
+
+    const userDoc = userQuerySnapshot.docs[0];
+    return { id: userDoc.id, ...userDoc.data() };
+  } catch (error) {
+    console.error('Error verifying session cookie:', error);
+    return null;
+  }
 }
 
-// Function to get Gym ID from headers
+/**
+ * Retrieves the gym ID from the server-side request headers.
+ *
+ * @returns {Promise<string|null>} The gym ID or null if not found.
+ */
 export async function getGymIdServerSide() {
-    return (await headers()).get('x-gym-id');
+  return (await headers()).get('x-gym-id');
 }
 
-// Function to check if the gym ID belongs to the current user
-export async function isCurrentGymBelongsToUser(_gymId) {
-    try {
-        const gymId = _gymId || await getGymIdServerSide();
-        // Use Firestore modular API to get gym document
-        const gymRef = db.collection("gyms").doc(gymId);
-        const gymSnapshot = await gymRef.get();
+/**
+ * Checks if the given user has the role of a gym owner.
+ *
+ * @param {Object} user - The user object.
+ * @returns {boolean} True if the user is a gym owner; otherwise, false.
+ */
 
-        if (!gymSnapshot.exists) {
-            return false; // Gym does not exist
-        }
+/**
+ * Retrieves a gym document by its ID.
+ *
+ * @param {string} gymId - The ID of the gym.
+ * @returns {Promise<Object|null>} An object containing the gym’s id and data, or null if not found.
+ */
+export async function getGymById(gymId) {
+  if (!gymId) return null;
 
-        const gymData = gymSnapshot.data();
-        const currentUserRef = await getCurrentUser();
+  try {
+    const gymDocRef = db.collection('gyms').doc(gymId);
+    const gymDoc = await gymDocRef.get();
 
-        if (!currentUserRef) {
-            return false; // No current user found
-        }
+    if (!gymDoc.exists) return null;
 
-        console.log(currentUserRef.id, 'CURRENT USER ID'); // Log current user ID
+    return { id: gymDoc.id, ...gymDoc.data() };
+  } catch (error) {
+    console.error('Error fetching gym:', error);
+    return null;
+  }
+}
 
-        // Compare the owner's reference with the current user's reference
-        return gymData.owner.id === currentUserRef.id;
-    } catch (error) {
-        console.error("Error checking gym ownership:", error);
-        return false; // Handle error appropriately
+/**
+ * Retrieves the current gym based on the gym ID found in the request headers.
+ *
+ * @returns {Promise<Object|null>} An object containing the gym’s id and data, or null if not found.
+ */
+export async function getCurrentGym() {
+  const gymId = await getGymIdServerSide();
+  return getGymById(gymId);
+}
+
+/**
+ * Checks if the gym (specified by an optional gym ID or via request headers) belongs to the current user.
+ *
+ * @param {string} [providedGymId] - Optional gym ID. If not provided, the function will attempt to get it from headers.
+ * @returns {Promise<boolean>} True if the current user is the owner of the gym; otherwise, false.
+ */
+export async function isCurrentGymBelongsToUser(providedGymId) {
+  try {
+    const gymId = providedGymId || (await getGymIdServerSide());
+    const gym = await getGymById(gymId);
+    if (!gym) return false;
+
+    const currentUser = await getCurrentUser();
+    if (!currentUser) return false;
+
+    // Compare the owner's reference (gym.owner is a DocumentReference) with the current user's id.
+    // Ensure gym.owner is valid and has an id property.
+    if (!gym.owner || !gym.owner.id) {
+      console.error('Gym owner reference is invalid.');
+      return false;
     }
+
+    return gym.owner.id === currentUser.id;
+  } catch (error) {
+    console.error('Error checking gym ownership:', error);
+    return false;
+  }
 }
