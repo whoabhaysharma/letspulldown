@@ -35,9 +35,9 @@ export async function getGymIdServerSide() {
 }
 
 // Function to check if the gym ID belongs to the current user
-export async function isCurrentGymBelongsToUser() {
+export async function isCurrentGymBelongsToUser(_gymId) {
     try {
-        const gymId = await getGymIdServerSide();
+        const gymId = _gymId || await getGymIdServerSide();
         // Use Firestore modular API to get gym document
         const gymRef = db.collection("gyms").doc(gymId);
         const gymSnapshot = await gymRef.get();
