@@ -6,6 +6,7 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from 
 import { Input } from "@/components/ui/input";
 import { Plus, Trash2, CheckCircle2, Clock } from "lucide-react";
 import { z } from 'zod';
+import Link from 'next/link';
 
 // Zod validation schema
 const gymSchema = z.object({
@@ -122,7 +123,11 @@ export default function Home() {
             >
               <div className="flex justify-between items-start">
                 <div>
-                  <h3 className="font-semibold text-gray-800">{gym.name}</h3>
+                  <h3 className="font-semibold text-gray-800">
+                    <Link href={`/members?gymId=${gym.id}`}>
+                      {gym.name}
+                    </Link>
+                  </h3>
                   <p className="text-sm text-gray-600 mt-1">{gym.address}</p>
                   <div className="flex items-center gap-2 mt-2">
                     {gym.verified ? (
