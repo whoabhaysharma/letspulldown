@@ -16,9 +16,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 
 const formSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
-  code: z.string().min(1, "Code is required"),
+  gym_code: z.string().min(1, "Code is required"),
   phone: z.string().optional(),
-  joiningDate: z.date({ required_error: "Joining date is required" }),
+  joining_date: z.date({ required_error: "Joining date is required" }),
 });
 
 export function AddMemberDrawer({ onAddMember }) {
@@ -27,16 +27,16 @@ export function AddMemberDrawer({ onAddMember }) {
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
-      code: "",
+      gym_code: "",
       phone: "",
-      joiningDate: new Date(),
+      joining_date: new Date(),
     },
   });
 
   function onSubmit(values) {
+    console.log(values, "-----------------");
     onAddMember({
       ...values,
-      membershipStart: format(values.joiningDate, "yyyy-MM-dd"),
     });
     form.reset();
     setOpen(false);
@@ -68,7 +68,7 @@ export function AddMemberDrawer({ onAddMember }) {
                 </FormItem>
               )} />
 
-              <FormField control={form.control} name="code" render={({ field }) => (
+              <FormField control={form.control} name="gym_code" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Member Code</FormLabel>
                   <FormControl>
@@ -88,7 +88,7 @@ export function AddMemberDrawer({ onAddMember }) {
                 </FormItem>
               )} />
 
-              <FormField control={form.control} name="joiningDate" render={({ field }) => (
+              <FormField control={form.control} name="joining_date" render={({ field }) => (
                 <FormItem className="flex flex-col">
                   <FormLabel>Joining Date</FormLabel>
                   <Popover>

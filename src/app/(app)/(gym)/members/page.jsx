@@ -37,6 +37,15 @@ export default function MembersList() {
         if (gymId) fetchMembers();
     }, [gymId]);
 
+    const addMember = async(data) => {
+        try{
+            const resp = await axios.post(`/api/members?gymId=${gymId}`, data);
+            console.log("Member added", resp.data);
+        }catch(err){
+            console.error("Failed to add member", err);
+        }
+    }
+ 
     return (
         <div className="flex flex-col gap-4">
             {members.map(({ id, name, membershipStart, membershipDuration }) => {
@@ -68,7 +77,7 @@ export default function MembersList() {
                     </Card>
                 );
             })}
-            <AddMemberDrawer onAddMember={fetchMembers} />
+            <AddMemberDrawer onAddMember={addMember} />
         </div>
     );
 }
