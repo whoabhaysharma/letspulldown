@@ -90,7 +90,6 @@ export default function MembersList() {
         <div className="flex flex-col gap-3">
             {/* Compact Header */}
             <div className="flex items-center justify-between gap-2">
-                <h1 className="text-xl font-semibold text-gray-900">Members</h1>
                 <AddMemberDrawer onAddMember={addMember}>
                     <Button size="sm" className="h-8 gap-1" disabled={isLoading}>
                         <Plus className="h-4 w-4" />

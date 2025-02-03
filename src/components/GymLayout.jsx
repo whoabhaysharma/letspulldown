@@ -58,7 +58,7 @@ const GymLayout = ({ children }) => {
         <div className="max-w-2xl mx-auto px-4">
           <div className="h-16 flex items-center justify-around">
             <button
-              onClick={() => router.push(`/`)}
+              onClick={() => router.push(`/?gymId=${gymId}`)}
               className={`flex flex-col items-center justify-center p-2 rounded-lg transition-colors ${isActive("/") ? "text-blue-600" : "text-gray-500 hover:text-blue-600"
                 }`}
             >
@@ -67,7 +67,7 @@ const GymLayout = ({ children }) => {
             </button>
 
             <button
-              onClick={() => router.push(`/members`)}
+              onClick={() => router.push(`/members?gymId=${gymId}`)}
               className={`flex flex-col items-center justify-center p-2 rounded-lg transition-colors ${isActive("/members") ? "text-blue-600" : "text-gray-500 hover:text-blue-600"
                 }`}
             >
@@ -76,7 +76,7 @@ const GymLayout = ({ children }) => {
             </button>
 
             <button
-              onClick={() => router.push(`/memberships`)}
+              onClick={() => router.push(`/memberships?gymId=${gymId}`)}
               className={`flex flex-col items-center justify-center p-2 rounded-lg transition-colors ${isActive("/memberships") ? "text-blue-600" : "text-gray-500 hover:text-blue-600"
                 }`}
             >
@@ -85,7 +85,7 @@ const GymLayout = ({ children }) => {
             </button>
 
             <button
-              onClick={() => router.push(`/settings`)}
+              onClick={() => router.push(`/settings?gymId=${gymId}`)}
               className={`flex flex-col items-center justify-center p-2 rounded-lg transition-colors ${isActive("/settings") ? "text-blue-600" : "text-gray-500 hover:text-blue-600"
                 }`}
             >
