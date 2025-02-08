@@ -4,19 +4,19 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 export default async function Layout({ children }) {
-  const cookieStore = cookies()
+  const cookieStore = await cookies();
+  const sessionToken = cookieStore.get("sessionToken")?.value;
 
-  const sessionToken = (await cookieStore).get("sessionToken")?.value
-  if(!sessionToken){
-    redirect("/login")
+  if (!sessionToken) {
+    redirect("/login");
   }
 
-  let user = null
+  let user = null;
 
-  try{
-    user  = (await getUserInformationFromSessionToken(sessionToken))
-  }catch(e){
-    redirect("/login")
+  try {
+    user = await getUserInformationFromSessionToken(sessionToken);
+  } catch (e) {
+    redirect("/api/auth/clear-session");
   }
 
   return <UserProvider user={user}>{children}</UserProvider>;
