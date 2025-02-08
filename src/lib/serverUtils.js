@@ -4,9 +4,8 @@ import axios from "axios"
 import { cookies } from "next/headers"
 
 export const getSessionTokenFromCookie = async () => {
-    const cookieStore = cookies()
-
-    const sessionToken = (await cookieStore).get("sessionToken")?.value
+    const cookieStore = await cookies()
+    const sessionToken = cookieStore.get("sessionToken")?.value
     if (sessionToken) return sessionToken
     return null
 }

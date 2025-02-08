@@ -1,22 +1,24 @@
 import UserProvider from "@/context/UserProvider";
+import { getSessionTokenFromCookie } from "@/lib/serverUtils";
 import { getUserInformationFromSessionToken } from "@/lib/utils";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 export default async function Layout({ children }) {
-  const cookieStore = await cookies();
-  const sessionToken = cookieStore.get("sessionToken")?.value;
+  const sessionToken = await getSessionTokenFromCookie()
 
   if (!sessionToken) {
-    redirect("/login");
+    console.log("NO SESSION TOKEN FOUND, REDIRECTING TO LOGIN");
+    return redirect("/login");
   }
 
-  let user = null;
+  const user = await getUserInformationFromSessionToken(sessionToken).catch((e) => {
+    console.error("Failed to fetch user information:", e);
+    return null;
+  });
 
-  try {
-    user = await getUserInformationFromSessionToken(sessionToken);
-  } catch (e) {
-    redirect("/api/auth/clear-session");
+  if (!user) {
+    console.log("INVALID SESSION, REDIRECTING TO CLEAR SESSION");
+    return redirect("/api/auth/clear-session");
   }
 
   return <UserProvider user={user}>{children}</UserProvider>;
