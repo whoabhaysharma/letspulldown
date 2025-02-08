@@ -4,6 +4,7 @@ import { Activity, Users, CreditCard, TrendingUp } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts"
+import { useUser } from "@/context/UserProvider"
 
 const revenueData = [
   { name: "M", total: 4000 },
@@ -26,6 +27,9 @@ const memberData = [
 ]
 
 export default function MobileGymDashboard() {
+  const { user } = useUser();
+
+  console.log(user, 'USERRRRR')
   return (
     <div>home</div>
     // <div className="flex flex-col gap-2 mb-5">
