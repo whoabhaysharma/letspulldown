@@ -112,12 +112,22 @@ const CustomMobileLogin = () => {
         setError("");
         setLoading(true);
 
-        const resp = await otplessSignin.current.verify({
-            channel: "PHONE",
-            phone,
-            otp,
-            countryCode: "+91",
-        });
+        try{
+            const responseData = await otplessSignin.current.verify({
+                channel: "PHONE",
+                phone,
+                otp,
+                countryCode: "+91",
+            });
+            if(responseData?.response?.errorMessage){
+                setError(responseData?.response?.errorMessage)
+            }
+        }catch(e){
+            setError("Something went wrong!")
+        }finally{
+            setLoading(false)
+        }
+        
         // Do not call setLoading(false) here; it will be handled in the callback
     };
 
