@@ -1,12 +1,12 @@
 import UserProvider from "@/context/UserProvider";
-import { getSession } from "@/lib/utils";
+import { getUserInformationFromSessionToken } from "@/lib/utils";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 export default async function Layout({ children }) {
   const cookieStore = cookies()
 
-  const sessionToken = (await cookieStore).get("sessionToken")
+  const sessionToken = (await cookieStore).get("sessionToken")?.value
   if(!sessionToken){
     redirect("/login")
   }
@@ -14,8 +14,7 @@ export default async function Layout({ children }) {
   let user = null
 
   try{
-    const sessionDetails = await getSession(sessionToken)
-    user = sessionDetails.identities[0]
+    user  = (await getUserInformationFromSessionToken(sessionToken))
   }catch(e){
     redirect("/login")
   }

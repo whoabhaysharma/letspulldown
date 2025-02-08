@@ -1,8 +1,18 @@
+import axios from "axios";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge"
 
 export function cn(...inputs) {
   return twMerge(clsx(inputs));
+}
+
+export const getUserInformationFromSessionToken = async(sessionToken) =>{
+  try {
+    const sessionDetails = await getSession(sessionToken)
+    return sessionDetails.identities[0]
+} catch (error) {
+    throw new Error(error.response?.data?.error || "Failed to validate session");
+}
 }
 
 export const getSession = async(sessionToken) => {
@@ -28,7 +38,6 @@ export const getSession = async(sessionToken) => {
  
 export const validateSession = async (sessionToken) => {
   try {
-      if(sessionToken === 'HELLO_WORLD') return {verified : "true"}
       const response = await axios.post(
           process.env.VALIDATE_SESSION_API_URL,
           { sessionToken }, // Sending sessionToken in request body

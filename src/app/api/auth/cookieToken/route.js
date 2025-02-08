@@ -61,7 +61,7 @@ export async function POST(request) {
     );
 
     // Set the sessionToken as an HTTP-only cookie in the response
-    response.cookies.set("sessionToken", "HELLO_WORLD", {
+    response.cookies.set("sessionToken", sessionToken, {
       path: "/",
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
