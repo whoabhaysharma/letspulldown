@@ -1,235 +1,234 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import Script from "next/script";
+import Image from "next/image";
+import { Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import Image from "next/image";
-import Link from "next/link";
-import { useState } from "react";
-import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
-import { auth } from "@/lib/firebase-client";
-import { useRouter } from "next/navigation";
-import axios from "axios";
+import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
-const Login = () => {
-    const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
-    const [error, setError] = useState("");
-    const [loading, setLoading] = useState(false); // Loading state
+const CustomMobileLogin = () => {
     const router = useRouter();
+    const [phone, setPhone] = useState("");
+    const [otp, setOtp] = useState("");
+    const [otpSent, setOtpSent] = useState(false);
+    const [error, setError] = useState("");
+    const [loading, setLoading] = useState(false);
+    const otplessSignin = useRef(null);
 
-    // Convert Firebase error codes to human-readable messages
-    const getHumanReadableError = (errorCode) => {
-        switch (errorCode) {
-            case "auth/invalid-email":
-                return "The email address is invalid.";
-            case "auth/user-not-found":
-                return "No account found with this email address.";
-            case "auth/wrong-password":
-                return "Incorrect password. Please try again.";
-            case "auth/invalid-credential":
-                return "Invalid email or password. Please check your credentials.";
-            case "auth/email-not-verified":
-                return "Please verify your email before logging in.";
-            case "auth/too-many-requests":
-                return "Too many failed attempts. Please try again later.";
+    const handleOtpCallback = ({ response, responseType }) => {
+        switch (responseType) {
+            case "ONETAP":
+                console.log("successfull", response)
+                router.push("/");
+                break;
+            case "OTP_AUTO_READ":
+                setOtp(response.otp);
+                setLoading(false);
+                break;
+            case "FAILED":
+                setError("Authentication failed. Please try again.");
+                setLoading(false);
+                break;
             default:
-                return "An error occurred. Please try again.";
+                console.log("Unhandled response type:", responseType);
+                setLoading(false);
         }
     };
 
-    // Handle email/password login
-    const handleLogin = async (e) => {
-        e.preventDefault();
+    const handleScriptLoad = () => {
+        if (window.OTPless) {
+            otplessSignin.current = new window.OTPless(handleOtpCallback);
+        } else {
+            setError("Failed to load authentication service.");
+        }
+    };
 
-        // Validate inputs
-        if (!email || !password) {
-            setError("Please fill in all fields.");
+    useEffect(() => {
+        window.otpless = (otplessUser) => {
+            console.log(otplessUser, 'OTP LESS USER')
+            alert(JSON.stringify(otplessUser));
+        };
+    }, []);
+
+    // Simple spinner component
+    const Spinner = () => (
+        <svg className="animate-spin h-5 w-5 mr-3" viewBox="0 0 24 24">
+            <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            />
+        </svg>
+    );
+
+    const initiatePhoneAuth = async() => {
+        if (!phone || phone.length < 10) {
+            setError("Please enter a valid phone number.");
             return;
         }
+        setError("");
+        setLoading(true);
 
-        setLoading(true); // Start loading
-        setError(""); // Clear previous errors
-
-        try {
-            // Sign in with email and password
-            const userCredential = await signInWithEmailAndPassword(auth, email, password);
-            const user = userCredential.user;
-
-            // Check if email is verified
-            if (!user.emailVerified) {
-                setError("Please verify your email before logging in.");
-                setLoading(false); // Stop loading
-                return;
-            }
-
-            await axios.get('/api/auth/cookieToken', {
-                headers: {
-                    Authorization: `Bearer ${await user.getIdToken()}`,
-                },
-            })
-
-            // Redirect to home page after successful login
-            router.push("/");
-            setLoading(false)
-        } catch (error) {
-            console.error("Error during login:", error);
-            setError(getHumanReadableError(error.code)); // Show human-readable error message
-        } finally {
-            // setLoading(false); // Stop loading
+        try{
+            const resp = await otplessSignin.current.initiate({
+                channel: "PHONE",
+                phone,
+                countryCode: "+91",
+            });
+        }catch(e){
+            console.log("mobile number is wrong", e)
+        }finally{
+            setLoading(false);
         }
+
+        // After initiating OTP, show the OTP input UI and stop loading
+        setOtpSent(true);
     };
 
-    // Handle Google login
-    const handleGoogleLogin = async () => {
-        setLoading(true); // Start loading
-        setError(""); // Clear previous errors
-
-        const provider = new GoogleAuthProvider();
-        try {
-            const userCredential = await signInWithPopup(auth, provider);
-            const user = userCredential.user;
-
-            await axios.get('/api/auth/cookieToken', {
-                headers: {
-                    Authorization: `Bearer ${await user.getIdToken()}`,
-                },
-            })
-
-            // Redirect to home page after successful login
-            router.push("/");
-        } catch (error) {
-            console.error("Error during Google login:", error);
-            setError(getHumanReadableError(error.code)); // Show human-readable error message
-        } finally {
-            setLoading(false); // Stop loading
+    const verifyPhoneOtp = async () => {
+        if (!otp || otp.length !== 6) {
+            setError("Please enter a valid 6-digit OTP.");
+            return;
         }
+        setError("");
+        setLoading(true);
+
+        const resp = await otplessSignin.current.verify({
+            channel: "PHONE",
+            phone,
+            otp,
+            countryCode: "+91",
+        });
+        // Do not call setLoading(false) here; it will be handled in the callback
     };
 
     return (
-        <div className="flex flex-col min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-            {/* Header */}
-            <div className="flex items-center justify-center p-8">
-                <Image
-                    src="/logo.png" // Replace with your logo path
-                    alt="Logo"
-                    width={80}
-                    height={80}
-                    className="rounded-lg"
-                />
-            </div>
+        <>
+            <Script
+                id="otpless-sdk"
+                src="https://otpless.com/v4/headless.js"
+                data-appid="O5H17S69DOC7VAQQRNGK"
+                onLoad={handleScriptLoad}
+            />
 
-            {/* Main Content */}
-            <div className="flex-1 flex flex-col justify-center px-6">
-                {/* Title */}
-                <h1 className="text-3xl font-bold text-gray-900 mb-8 text-center">
-                    Welcome Back
-                </h1>
-
-                {/* Error Message */}
-                {error && (
-                    <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-md text-sm text-center">
-                        {error}
-                    </div>
-                )}
-
-                {/* Email and Password Form */}
-                <form onSubmit={handleLogin} className="space-y-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="email" className="text-gray-700">
-                            Email
-                        </Label>
-                        <Input
-                            id="email"
-                            type="email"
-                            placeholder="Enter your email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            className="w-full"
-                            disabled={loading} // Disable input while loading
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="password" className="text-gray-700">
-                            Password
-                        </Label>
-                        <Input
-                            id="password"
-                            type="password"
-                            placeholder="Enter your password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            className="w-full"
-                            disabled={loading} // Disable input while loading
-                        />
-                    </div>
-
-                    {/* Forgot Password Link */}
-                    <div className="text-right">
-                        <Link
-                            href="/forgotPassword"
-                            className="text-sm text-blue-600 hover:underline"
-                        >
-                            Forgot Password?
-                        </Link>
-                    </div>
-
-                    {/* Login Button */}
-                    <Button
-                        type="submit"
-                        className="w-full bg-blue-600 hover:bg-blue-700"
-                        disabled={loading} // Disable button while loading
-                    >
-                        {loading ? "Logging in..." : "Login"}
-                    </Button>
-                </form>
-
-                {/* Divider */}
-                <div className="flex items-center justify-center my-6">
-                    <div className="flex-1 h-px bg-gray-300" />
-                    <span className="mx-4 text-sm text-gray-500">OR</span>
-                    <div className="flex-1 h-px bg-gray-300" />
-                </div>
-
-                {/* Continue with Google */}
-                <Button
-                    onClick={handleGoogleLogin}
-                    variant="outline"
-                    className="w-full flex items-center justify-center space-x-2"
-                    disabled={loading} // Disable button while loading
-                >
+            <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex flex-col justify-center items-center px-4">
+                <div className="mb-10">
                     <Image
-                        src="/google_logo.webp" // Replace with your Google icon path
-                        alt="Google"
-                        width={20}
-                        height={20}
+                        src="/logo.png"
+                        alt="App Logo"
+                        width={120}
+                        height={120}
+                        className="rounded-2xl shadow-sm"
                     />
-                    <span>{loading ? "Logging in..." : "Continue with Google"}</span>
-                </Button>
-
-                {/* Signup Link */}
-                <div className="text-center text-sm text-gray-600 mt-6">
-                    Don’t have an account?{" "}
-                    <Link href="/signup" className="text-blue-600 hover:underline">
-                        Sign up
-                    </Link>
                 </div>
-            </div>
 
-            {/* Footer */}
-            <div className="text-center text-sm text-gray-500 p-6">
-                By continuing, you agree to our{" "}
-                <Link href="/terms" className="text-blue-600 hover:underline">
-                    Terms of Service
-                </Link>{" "}
-                and{" "}
-                <Link href="/privacy" className="text-blue-600 hover:underline">
-                    Privacy Policy
-                </Link>
-                .
+                <Card className="w-full max-w-md shadow-sm">
+                    <CardHeader className="text-center">
+                        <h1 className="text-3xl font-bold text-slate-800 mb-2">Welcome</h1>
+                        <p className="text-slate-500">Sign in with your mobile number</p>
+                    </CardHeader>
+
+                    <CardContent>
+                        {error && (
+                            <Alert variant="destructive" className="mb-4">
+                                <AlertDescription>{error}</AlertDescription>
+                            </Alert>
+                        )}
+
+                        {!otpSent ? (
+                            <div className="space-y-6">
+                                <div className="space-y-2">
+                                    <Label htmlFor="phone">Mobile Number</Label>
+                                    <Input
+                                        id="phone"
+                                        type="tel"
+                                        value={phone}
+                                        onChange={(e) => setPhone(e.target.value)}
+                                        placeholder="Enter your mobile number"
+                                        disabled={loading}
+                                    />
+                                </div>
+
+                                <Button onClick={initiatePhoneAuth} disabled={loading} className="w-full">
+                                    {loading ? (
+                                        <>
+                                            <Spinner />
+                                            Sending OTP...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Phone className="w-5 h-5 mr-2" />
+                                            Send OTP
+                                        </>
+                                    )}
+                                </Button>
+                            </div>
+                        ) : (
+                            <div className="space-y-6">
+                                <div className="space-y-2">
+                                    <Label htmlFor="otp">Enter OTP</Label>
+                                    <Input
+                                        id="otp"
+                                        type="text"
+                                        value={otp}
+                                        onChange={(e) => setOtp(e.target.value)}
+                                        placeholder="6-digit OTP"
+                                        className="text-center text-xl tracking-widest"
+                                        disabled={loading}
+                                    />
+                                </div>
+
+                                <Button
+                                    onClick={verifyPhoneOtp}
+                                    disabled={loading}
+                                    className="w-full bg-green-600 hover:bg-green-700"
+                                >
+                                    {loading ? (
+                                        <>
+                                            <Spinner />
+                                            Verifying...
+                                        </>
+                                    ) : (
+                                        "Verify OTP"
+                                    )}
+                                </Button>
+
+                                <div className="text-center text-sm text-gray-500">
+                                    Didn't receive code?{" "}
+                                    <Button
+                                        variant="link"
+                                        onClick={() => {
+                                            setOtpSent(false);
+                                            setOtp("");
+                                        }}
+                                        className="text-blue-600 hover:text-blue-700 p-0"
+                                    >
+                                        Resend OTP
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
+                    </CardContent>
+
+                    <CardFooter className="mt-8 text-center text-sm text-gray-500">
+                        By continuing, you agree to our{" "}
+                        <Button variant="link" className="text-blue-600 hover:text-blue-700 p-0">
+                            Terms
+                        </Button>{" "}
+                        and{" "}
+                        <Button variant="link" className="text-blue-600 hover:text-blue-700 p-0">
+                            Privacy
+                        </Button>
+                    </CardFooter>
+                </Card>
             </div>
-        </div>
+        </>
     );
 };
 
-export default Login;
+export default CustomMobileLogin;
