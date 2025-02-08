@@ -3,13 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Script from "next/script";
-import Image from "next/image";
 import { Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card";
+import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import axios from "axios";
 
 const CustomMobileLogin = () => {
     const router = useRouter();
@@ -20,11 +20,25 @@ const CustomMobileLogin = () => {
     const [loading, setLoading] = useState(false);
     const otplessSignin = useRef(null);
 
+    async function validateUser(respData){
+        try{
+            const resp = await axios.post("/api/auth/cookieToken", {
+                sessionToken : respData?.sessionInfo?.sessionToken
+            })
+
+            if(resp.status === 200){
+                router.push("/")
+            }
+        }catch(e){
+            setLoading(false)
+            setError(e.message)
+        }
+    }
+
     const handleOtpCallback = ({ response, responseType }) => {
         switch (responseType) {
             case "ONETAP":
-                console.log("successfull", response)
-                router.push("/");
+                validateUser(response)
                 break;
             case "OTP_AUTO_READ":
                 setOtp(response.otp);
@@ -112,24 +126,14 @@ const CustomMobileLogin = () => {
             <Script
                 id="otpless-sdk"
                 src="https://otpless.com/v4/headless.js"
-                data-appid="O5H17S69DOC7VAQQRNGK"
+                data-appid={process.env.NEXT_PUBLIC_APP_ID}
                 onLoad={handleScriptLoad}
             />
 
             <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex flex-col justify-center items-center px-4">
-                <div className="mb-10">
-                    <Image
-                        src="/logo.png"
-                        alt="App Logo"
-                        width={120}
-                        height={120}
-                        className="rounded-2xl shadow-sm"
-                    />
-                </div>
-
                 <Card className="w-full max-w-md shadow-sm">
                     <CardHeader className="text-center">
-                        <h1 className="text-3xl font-bold text-slate-800 mb-2">Welcome</h1>
+                        <h1 className="text-3xl font-bold text-slate-800 mb-2">Fithub</h1>
                         <p className="text-slate-500">Sign in with your mobile number</p>
                     </CardHeader>
 
@@ -214,17 +218,6 @@ const CustomMobileLogin = () => {
                             </div>
                         )}
                     </CardContent>
-
-                    <CardFooter className="mt-8 text-center text-sm text-gray-500">
-                        By continuing, you agree to our{" "}
-                        <Button variant="link" className="text-blue-600 hover:text-blue-700 p-0">
-                            Terms
-                        </Button>{" "}
-                        and{" "}
-                        <Button variant="link" className="text-blue-600 hover:text-blue-700 p-0">
-                            Privacy
-                        </Button>
-                    </CardFooter>
                 </Card>
             </div>
         </>

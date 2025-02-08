@@ -1,58 +1,86 @@
+import axios from "axios";
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { auth, db } from "@/lib/firebase-admin";
 
-export async function GET(request) {
+const clientId = process.env.CLIENT_ID;
+const clientSecret = process.env.CLIENT_SECRET;
+const SESSION_API_URL = process.env.SESSION_API_URL;
+
+const getSessionDetails = async (sessionToken) => {
     try {
-        const authHeader = request.headers.get("Authorization");
-        if (!authHeader?.startsWith("Bearer ")) {
-            return NextResponse.json(
-                { error: "Missing or invalid authorization header" },
-                { status: 401 }
-            );
-        }
-
-        const idToken = authHeader.split("Bearer ")[1];
-        const decodedToken = await auth.verifyIdToken(idToken);
-        const { uid, name = "", picture = "", email } = decodedToken;
-
-        // User handling
-        const userSnapshot = await db.collection("users").where("uid", "==", uid).get();
-        if (userSnapshot.empty) {
-            await db.collection("users").add({
-                uid,
-                name,
-                email,
-                picture,
-                role: "gym_owner",
-                created: new Date().toISOString()
-            });
-        }
-
-        // Create session cookie
-        const expiresIn = 60 * 60 * 24 * 5 * 1000; // 5 days
-        const sessionCookie = await auth.createSessionCookie(idToken, { expiresIn });
-
-        // Set cookie in response
-        cookies().set("session", sessionCookie, {
-            maxAge: expiresIn / 1000,
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: "lax",
-            path: "/",
-        });
-
-        // Return success response with user data
-        return NextResponse.json(
-            { success: true, user: { uid, name, email, picture } },
-            { status: 200 }
+        const response = await axios.post(
+            SESSION_API_URL,
+            { sessionToken },
+            {
+                headers: {
+                    "Content-Type": "application/json",
+                    clientId,
+                    clientSecret,
+                },
+            }
         );
 
+        return response.data;
     } catch (error) {
-        console.error("Authentication error:", error);
-        return NextResponse.json(
-            { error: error.message || "Authentication failed" },
-            { status: 500 }
-        );
+        const { response } = error;
+
+        if (response) {
+            const { status, data } = response;
+
+            // Handle specific status codes
+            if (status === 400) {
+                throw new Error(`Error ${data.errorCode}: ${data.description}`);
+            } else if (status === 401) {
+                throw new Error(`Error ${data.errorCode}: ${data.description}`);
+            } else if (status === 500) {
+                throw new Error("Internal server error. Please try again later.");
+            }
+        }
+
+        throw new Error("Network error or invalid response from server.");
     }
+};
+
+export async function POST(request) {
+  try {
+    // Parse request body
+    const { sessionToken } = await request.json();
+
+    if (!sessionToken) {
+      return NextResponse.json(
+        { error: "Token is required" },
+        { status: 400 }
+      );
+    }
+
+    // Verify token using OTPless SDK
+    const sessionDetails = await getSessionDetails(sessionToken);
+
+    const response = NextResponse.json(
+      { success: true, session: sessionDetails },
+      { status: 200 }
+    );
+
+    // Set the sessionToken as an HTTP-only cookie in the response
+    response.cookies.set("sessionToken", sessionToken, {
+      path: "/",
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+    });
+
+    return response;
+  } catch (error) {
+    console.error("Error:", error.message);
+
+    const status = error.message.includes("7414")
+      ? 400
+      : error.message.includes("7415")
+      ? 401
+      : 500;
+
+    return NextResponse.json(
+      { error: error.message },
+      { status }
+    );
+  }
 }
