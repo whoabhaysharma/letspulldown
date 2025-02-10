@@ -36,6 +36,6 @@ export async function middleware(request) {
 }
 
 // Limit middleware execution only to routes that require authentication.
-// export const config = {
-//   matcher: '/api:path*',
-// }
+export const config = {
+  matcher: '/api:path*',
+}

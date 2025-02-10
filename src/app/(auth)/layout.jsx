@@ -1,24 +1,42 @@
 import { getSessionTokenFromCookie, validateSession } from "@/lib/serverUtils";
 import { redirect } from "next/navigation";
 
+// Inline safe wrappers that handle errors internally.
+async function safeGetSessionToken() {
+  try {
+    return await getSessionTokenFromCookie();
+  } catch (error) {
+    console.error("Error retrieving session token:", error);
+    return null;
+  }
+}
+
+async function safeValidateSession(token) {
+  try {
+    return await validateSession(token);
+  } catch (error) {
+    console.error("Session validation failed:", error);
+    return null;
+  }
+}
+
 export default async function LoginLayout({ children }) {
-  const sessionToken = await getSessionTokenFromCookie();
-  
+  // Step 1: Attempt to get the session token.
+  const sessionToken = await safeGetSessionToken();
+
+  // No session token? Render the login page.
   if (!sessionToken) {
-    console.log("NO SESSION FOUND, SHOWING LOGIN");
     return children;
   }
 
-  const session = await validateSession(sessionToken).catch((e) => {
-    console.error("Session validation failed:", e);
-    return null;
-  });
+  // Step 2: Validate the session using the token.
+  const session = await safeValidateSession(sessionToken);
 
-  if (!session?.success) {
-    console.log("SESSION INVALID, REDIRECTING TO CLEAR SESSION");
+  // If session validation fails or returns a non‑successful result, redirect to clear the session.
+  if (!session) {
     return redirect("/api/auth/clear-session");
   }
 
-  console.log("SESSION VALID, REDIRECTING TO HOME");
+  // Otherwise, if the session is valid, redirect to the home page.
   return redirect("/");
 }
