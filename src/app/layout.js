@@ -1,6 +1,7 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import DesktopWarning from "@/components/DesktopWarning";
+import Script from "next/script";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -23,6 +24,12 @@ export default function RootLayout({ children }) {
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+         <Script
+          id="otpless-sdk"
+          src="https://otpless.com/v4/headless.js"
+          data-appid={process.env.NEXT_PUBLIC_APP_ID}
+          strategy="beforeInteractive" // load it early
+        />
         <div className="hidden sm:flex w-full h-screen items-center justify-center">
           <DesktopWarning/>
         </div>

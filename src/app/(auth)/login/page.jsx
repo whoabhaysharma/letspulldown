@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Script from "next/script";
 import { Phone } from "lucide-react";
@@ -10,6 +10,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import Link from "next/link";
+import otpUtil from "@/lib/OtpUtil";
+
+// Import your custom OTP input components
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSlot,
+  InputOTPSeparator,
+} from "@/components/ui/input-otp";
 
 // Minimal spinner component
 const Spinner = () => (
@@ -37,8 +46,45 @@ const CustomMobileLogin = () => {
   const [otpSent, setOtpSent] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const otplessSignin = useRef(null);
 
+  // Callback configuration for otpUtil
+  const otpCallbacks = {
+    onOneTap: (response) => {
+      // Automatically validate user if one-tap is successful
+      validateUser(response);
+    },
+    onOtpAutoRead: (response) => {
+      // Auto-read OTP and update state
+      setOtp(response.otp);
+      setLoading(false);
+    },
+    onFailed: (response) => {
+      setError("Authentication failed. Please try again.");
+      setLoading(false);
+    },
+    onDefault: (response, type) => {
+      console.warn("Unhandled OTP callback:", type, response);
+      setLoading(false);
+    },
+  };
+
+  // Called when the OTPless SDK script is loaded.
+  const handleScriptLoad = () => {
+    try {
+      otpUtil.init(otpCallbacks);
+    } catch (e) {
+      setError(e.message);
+    }
+  };
+
+  // Optionally, you can set a global callback if needed.
+  useEffect(() => {
+    window.otpless = (otplessUser) => {
+      console.log("Global OTPless callback:", otplessUser);
+    };
+  }, []);
+
+  // Validate the user after a successful OTP-based authentication.
   async function validateUser(respData) {
     try {
       const resp = await axios.post("/api/auth/cookieToken", {
@@ -53,40 +99,7 @@ const CustomMobileLogin = () => {
     }
   }
 
-  const handleOtpCallback = ({ response, responseType }) => {
-    switch (responseType) {
-      case "ONETAP":
-        validateUser(response);
-        break;
-      case "OTP_AUTO_READ":
-        setOtp(response.otp);
-        setLoading(false);
-        break;
-      case "FAILED":
-        setError("Authentication failed. Please try again.");
-        setLoading(false);
-        break;
-      default:
-        console.log("Unhandled response type:", responseType);
-        setLoading(false);
-    }
-  };
-
-  const handleScriptLoad = () => {
-    if (window.OTPless) {
-      otplessSignin.current = new window.OTPless(handleOtpCallback);
-    } else {
-      setError("Failed to load authentication service.");
-    }
-  };
-
-  useEffect(() => {
-    window.otpless = (otplessUser) => {
-      console.log(otplessUser, "OTP LESS USER");
-      alert(JSON.stringify(otplessUser));
-    };
-  }, []);
-
+  // Initiate sending the OTP using the otpUtil module.
   const initiatePhoneAuth = async () => {
     if (!phone || phone.length < 10) {
       setError("Please enter a valid phone number.");
@@ -94,23 +107,19 @@ const CustomMobileLogin = () => {
     }
     setError("");
     setLoading(true);
-
     try {
-      await otplessSignin.current.initiate({
-        channel: "PHONE",
-        phone,
-        countryCode: "+91",
-      });
-      // After sending OTP, show the OTP input UI
+      await otpUtil.sendOtp({ phone, countryCode: "+91" });
+      // After sending OTP, show the OTP input UI.
       setOtpSent(true);
     } catch (e) {
-      console.error("Error initiating phone auth:", e);
+      console.error("Error sending OTP:", e);
       setError("Failed to send OTP. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
+  // Verify the OTP entered by the user using otpUtil.
   const verifyPhoneOtp = async () => {
     if (!otp || otp.length !== 6) {
       setError("Please enter a valid 6-digit OTP.");
@@ -118,16 +127,14 @@ const CustomMobileLogin = () => {
     }
     setError("");
     setLoading(true);
-
     try {
-      const responseData = await otplessSignin.current.verify({
-        channel: "PHONE",
+      const responseData = await otpUtil.verifyOtp({
         phone,
         otp,
         countryCode: "+91",
       });
       if (responseData?.response?.errorMessage) {
-        setError(responseData?.response?.errorMessage);
+        setError(responseData.response.errorMessage);
       }
     } catch (e) {
       setError("Something went wrong!");
@@ -138,7 +145,7 @@ const CustomMobileLogin = () => {
 
   return (
     <>
-      {/* Load the OTPless SDK */}
+      {/* Load the OTPless SDK (could also be loaded globally, e.g., in _app.js) */}
       <Script
         id="otpless-sdk"
         src="https://otpless.com/v4/headless.js"
@@ -165,57 +172,66 @@ const CustomMobileLogin = () => {
 
           {!otpSent ? (
             <>
-            <div className="mb-6">
-              <Label htmlFor="phone" className="block text-gray-800 text-lg font-medium mb-2">
-                Mobile Number
-              </Label>
-              <Input
-                id="phone"
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="Enter your mobile number"
-                disabled={loading}
-                className="w-full bg-white/80 text-gray-800 border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-          
-            <Button
-              onClick={initiatePhoneAuth}
-              disabled={loading}
-              className="w-full flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg p-3 transition duration-200"
-            >
-              {loading ? (
-                <>
-                  <Spinner />
-                  Sending OTP...
-                </>
-              ) : (
-                <>
-                  <Phone className="w-5 h-5 mr-2" />
-                  Send OTP
-                </>
-              )}
-            </Button>
-          
-            <Link href={"/register-gym"} className="text-blue-600 hover:underline block text-center py-3">I'm a gym Owner</Link>
-          </>
-          
-          ) : (
-            <>
-              <div className="mb-4">
-                <Label htmlFor="otp" className="block text-gray-700 mb-2">
-                  Enter OTP
+              <div className="mb-6">
+                <Label
+                  htmlFor="phone"
+                  className="block text-gray-800 text-lg font-medium mb-2"
+                >
+                  Mobile Number
                 </Label>
                 <Input
-                  id="otp"
-                  type="text"
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value)}
-                  placeholder="6-digit OTP"
+                  id="phone"
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="Enter your mobile number"
                   disabled={loading}
-                  className="w-full text-center text-xl border border-gray-300 rounded-md p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 tracking-widest"
+                  className="w-full bg-white/80 text-gray-800 border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
+              </div>
+
+              <Button
+                onClick={initiatePhoneAuth}
+                disabled={loading}
+                className="w-full flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg p-3 transition duration-200"
+              >
+                {loading ? (
+                  <>
+                    <Spinner />
+                    Sending OTP...
+                  </>
+                ) : (
+                  <>
+                    <Phone className="w-5 h-5 mr-2" />
+                    Send OTP
+                  </>
+                )}
+              </Button>
+
+              <Link
+                href="/register-gym"
+                className="text-blue-600 hover:underline block text-center py-3"
+              >
+                I'm a gym Owner
+              </Link>
+            </>
+          ) : (
+            <>
+              <div className="mb-4 flex justify-center items-center">
+                {/* Replace plain Input with custom OTP input component */}
+                <InputOTP maxLength={6} value={otp} onChange={setOtp}>
+                  <InputOTPGroup>
+                    <InputOTPSlot index={0} />
+                    <InputOTPSlot index={1} />
+                    <InputOTPSlot index={2} />
+                  </InputOTPGroup>
+                  <InputOTPSeparator />
+                  <InputOTPGroup>
+                    <InputOTPSlot index={3} />
+                    <InputOTPSlot index={4} />
+                    <InputOTPSlot index={5} />
+                  </InputOTPGroup>
+                </InputOTP>
               </div>
 
               <Button
