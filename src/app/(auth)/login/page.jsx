@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Script from "next/script";
 import { Phone } from "lucide-react";
 import axios from "axios";
 import { Button } from "@/components/ui/button";
@@ -68,20 +67,18 @@ const CustomMobileLogin = () => {
     },
   };
 
-  // Called when the OTPless SDK script is loaded.
-  const handleScriptLoad = () => {
-    try {
-      otpUtil.init(otpCallbacks);
-    } catch (e) {
-      setError(e.message);
-    }
-  };
-
-  // Optionally, you can set a global callback if needed.
+  // Since the OTPless SDK is already loaded in the root,
+  // initialize the OTP utility once the component mounts.
   useEffect(() => {
-    window.otpless = (otplessUser) => {
-      console.log("Global OTPless callback:", otplessUser);
-    };
+    if (window.OTPless) {
+      try {
+        otpUtil.init(otpCallbacks);
+      } catch (e) {
+        setError(e.message);
+      }
+    } else {
+      console.warn("OTPless SDK not loaded yet");
+    }
   }, []);
 
   // Validate the user after a successful OTP-based authentication.
@@ -144,127 +141,136 @@ const CustomMobileLogin = () => {
   };
 
   return (
-    <>
-      {/* Load the OTPless SDK (could also be loaded globally, e.g., in _app.js) */}
-      <Script
-        id="otpless-sdk"
-        src="https://otpless.com/v4/headless.js"
-        data-appid={process.env.NEXT_PUBLIC_APP_ID}
-        onLoad={handleScriptLoad}
-      />
-
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-r from-blue-100 to-indigo-100 px-4">
-        <div className="bg-white w-full max-w-md rounded-xl shadow-md p-8">
-          <div className="mb-8 text-center">
-            <h1 className="text-3xl font-bold text-gray-800">Fithub</h1>
-            <p className="mt-2 text-gray-500">
-              Sign in with your mobile number
-            </p>
-          </div>
-
-          {error && (
-            <div className="mb-4">
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            </div>
-          )}
-
-          {!otpSent ? (
-            <>
-              <div className="mb-6">
-                <Label
-                  htmlFor="phone"
-                  className="block text-gray-800 text-lg font-medium mb-2"
-                >
-                  Mobile Number
-                </Label>
-                <Input
-                  id="phone"
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="Enter your mobile number"
-                  disabled={loading}
-                  className="w-full bg-white/80 text-gray-800 border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-
-              <Button
-                onClick={initiatePhoneAuth}
-                disabled={loading}
-                className="w-full flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg p-3 transition duration-200"
-              >
-                {loading ? (
-                  <>
-                    <Spinner />
-                    Sending OTP...
-                  </>
-                ) : (
-                  <>
-                    <Phone className="w-5 h-5 mr-2" />
-                    Send OTP
-                  </>
-                )}
-              </Button>
-
-              <Link
-                href="/register-gym"
-                className="text-blue-600 hover:underline block text-center py-3"
-              >
-                I'm a gym Owner
-              </Link>
-            </>
-          ) : (
-            <>
-              <div className="mb-4 flex justify-center items-center">
-                {/* Replace plain Input with custom OTP input component */}
-                <InputOTP maxLength={6} value={otp} onChange={setOtp}>
-                  <InputOTPGroup>
-                    <InputOTPSlot index={0} />
-                    <InputOTPSlot index={1} />
-                    <InputOTPSlot index={2} />
-                  </InputOTPGroup>
-                  <InputOTPSeparator />
-                  <InputOTPGroup>
-                    <InputOTPSlot index={3} />
-                    <InputOTPSlot index={4} />
-                    <InputOTPSlot index={5} />
-                  </InputOTPGroup>
-                </InputOTP>
-              </div>
-
-              <Button
-                onClick={verifyPhoneOtp}
-                disabled={loading}
-                className="w-full flex items-center justify-center bg-green-600 hover:bg-green-700 text-white rounded-md p-3 transition duration-200"
-              >
-                {loading ? (
-                  <>
-                    <Spinner />
-                    Verifying...
-                  </>
-                ) : (
-                  "Verify OTP"
-                )}
-              </Button>
-
-              <div className="mt-4 text-center">
-                <button
-                  onClick={() => {
-                    setOtpSent(false);
-                    setOtp("");
-                  }}
-                  className="text-sm text-indigo-600 hover:text-indigo-800 focus:outline-none"
-                >
-                  Resend OTP
-                </button>
-              </div>
-            </>
-          )}
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-r from-blue-100 to-indigo-100 px-4">
+      <div className="bg-white w-full max-w-md rounded-xl shadow-md p-8">
+        <div className="mb-8 text-center">
+          <h1 className="text-3xl font-bold text-gray-800">Fithub</h1>
+          <p className="mt-2 text-gray-500">
+            Sign in with your mobile number
+          </p>
         </div>
+
+        {error && (
+          <div className="mb-4">
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          </div>
+        )}
+
+        {!otpSent ? (
+          <>
+            <div className="mb-6">
+              <Label
+                htmlFor="phone"
+                className="block text-gray-800 text-lg font-medium mb-2"
+              >
+                Mobile Number
+              </Label>
+              <Input
+                id="phone"
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="Enter your mobile number"
+                disabled={loading}
+                className="w-full bg-white/80 text-gray-800 border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+
+            <Button
+              onClick={initiatePhoneAuth}
+              disabled={loading}
+              className="w-full flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg p-3 transition duration-200"
+            >
+              {loading ? (
+                <>
+                  <Spinner />
+                  Sending OTP...
+                </>
+              ) : (
+                <>
+                  <Phone className="w-5 h-5 mr-2" />
+                  Send OTP
+                </>
+              )}
+            </Button>
+
+            <Link
+              href="/register-gym"
+              className="text-blue-600 hover:underline block text-center py-3"
+            >
+              I'm a gym Owner
+            </Link>
+          </>
+        ) : (
+          <div className="w-full">
+            <div className="flex justify-center items-center py-3">
+              {/* Custom OTP input component with alignment classes */}
+              <InputOTP
+                maxLength={6}
+                value={otp}
+                onChange={setOtp}
+                className=""
+              >
+                <div className="flex flex-row items-center">
+                  <InputOTPGroup>
+                    <InputOTPSlot
+                      index={0}
+                    />
+                    <InputOTPSlot
+                      index={1}
+                    />
+                    <InputOTPSlot
+                      index={2}
+                    />
+                  </InputOTPGroup>
+                  <InputOTPSeparator>-</InputOTPSeparator>
+                  <InputOTPGroup>
+                    <InputOTPSlot
+                      index={3}
+                    />
+                    <InputOTPSlot
+                      index={4}
+                    />
+                    <InputOTPSlot
+                      index={5}
+                    />
+                  </InputOTPGroup>
+                </div>
+              </InputOTP>
+            </div>
+
+            <Button
+              onClick={verifyPhoneOtp}
+              disabled={loading}
+              className="w-full flex items-center justify-center bg-green-600 hover:bg-green-700 text-white rounded-md p-3 transition duration-200"
+            >
+              {loading ? (
+                <>
+                  <Spinner />
+                  Verifying...
+                </>
+              ) : (
+                "Verify OTP"
+              )}
+            </Button>
+
+            <div className="mt-4 text-center">
+              <button
+                onClick={() => {
+                  setOtpSent(false);
+                  setOtp("");
+                }}
+                className="text-sm text-indigo-600 hover:text-indigo-800 focus:outline-none"
+              >
+                Resend OTP
+              </button>
+            </div>
+          </div>
+        )}
       </div>
-    </>
+    </div>
   );
 };
 
