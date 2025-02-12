@@ -1,4 +1,3 @@
-import { isUserAvailableWithPhone } from "@/lib/utils";
 import { NextResponse } from "next/server";
 
 /**
@@ -23,3 +22,27 @@ export async function GET(request, {params}) {
         {status: 200}
     )
 }
+
+async function isUserAvailableWithPhone(phone){
+    if(!phone) return false
+  
+    try {
+      const { data, error } = await supabaseAdmin
+        .from('users')
+        .select('id') // Fetch only the necessary field for efficiency
+        .eq('phone', phone)
+        .limit(1)
+        .single(); // Fetch a single record if exists
+  
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching user:', error);
+        return false;
+      }
+  
+      return !!data; // Returns true if user exists, false otherwise
+    } catch (err) {
+      console.error('Unexpected error:', err);
+      return false;
+    }
+  
+  }

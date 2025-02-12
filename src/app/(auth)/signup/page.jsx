@@ -1,289 +1,222 @@
 "use client";
 
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import Image from "next/image";
-import Link from "next/link";
-import { useState } from "react";
-import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, sendEmailVerification } from "firebase/auth";
-import { auth } from "@/lib/firebase-client";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSlot,
+  InputOTPSeparator,
+} from "@/components/ui/input-otp";
+import { Textarea } from "@/components/ui/textarea";
 import axios from "axios";
 import { useRouter } from "next/navigation";
 
-const Signup = () => {
-    const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
-    const [confirmPassword, setConfirmPassword] = useState("");
-    const [errors, setErrors] = useState({
-        email: "",
-        password: "",
-        confirmPassword: "",
-        firebase: "",
+// 🛡️ Form Validation Schema
+const gymSchema = z.object({
+  gymName: z.string().min(1, "Gym Name is required"),
+  ownerName: z.string().min(1, "Owner Name is required"),
+  mobileNumber: z
+    .string()
+    .min(10, "Mobile number must be 10 digits")
+    .max(10, "Mobile number must be 10 digits")
+    .regex(/^[6-9]\d{9}$/, "Enter a valid mobile number"),
+  address: z.string().min(1, "Address is required"),
+});
+
+export default function GymRegistrationMobile() {
+  // Form Handling
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm({ resolver: zodResolver(gymSchema) });
+
+  // State Management for OTP, loading, and errors
+  const [otpSent, setOtpSent] = useState(false);
+  const [otp, setOtp] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const router = useRouter()
+  // Simulated OTP Functions
+  const sendOtp = () =>
+    new Promise((resolve) => {
+      setLoading(true);
+      setTimeout(() => {
+        setLoading(false);
+        resolve("dummy-otp-sent");
+      }, 1000);
     });
-    const [loading, setLoading] = useState(false); // Loading state
 
-    const router = useRouter();
+  const verifyOtp = (enteredOtp) =>
+    new Promise((resolve, reject) => {
+      setLoading(true);
+      setTimeout(() => {
+        setLoading(false);
+        enteredOtp === "123456" ? resolve("otp-verified") : reject(new Error("Invalid OTP"));
+      }, 1000);
+    });
 
-    // Convert Firebase error codes to human-readable messages
-    const getHumanReadableError = (errorCode) => {
-        switch (errorCode) {
-            case "auth/invalid-email":
-                return "The email address is invalid.";
-            case "auth/email-already-in-use":
-                return "An account with this email already exists.";
-            case "auth/weak-password":
-                return "Password should be at least 6 characters.";
-            case "auth/operation-not-allowed":
-                return "Email/password accounts are not enabled.";
-            default:
-                return "An error occurred. Please try again.";
+    const onSubmit = async (data) => {
+      try {
+        const resp = await axios.get(`/api/auth/check-user/${data.mobileNumber}`);
+        const isAlreadyRegistered = resp.data?.data?.status;
+    
+        if (isAlreadyRegistered) {
+          router.push('/login');
+          return
         }
+    
+        await sendOtp();
+        setOtpSent(true);
+        setError("");
+      } catch (error) {
+        setError("Something went wrong, please try again.");
+      }
     };
+    
 
-    // Validate form fields
-    const validateForm = () => {
-        let isValid = true;
-        const newErrors = { email: "", password: "", confirmPassword: "", firebase: "" };
+  const handleVerifyOtp = async () => {
+    setError("");
+    if (!otp || otp.length !== 6) {
+      setError("Please enter a valid 6-digit OTP.");
+      return;
+    }
+    try {
+      await verifyOtp(otp);
+      alert("Gym registered successfully!");
+    } catch (err) {
+      setError(err.message);
+    }
+  };
 
-        // Email validation
-        if (!email) {
-            newErrors.email = "Email is required.";
-            isValid = false;
-        } else if (!/\S+@\S+\.\S+/.test(email)) {
-            newErrors.email = "Email is invalid.";
-            isValid = false;
-        }
+  return (
+    <div className="min-h-screen flex flex-col items-center bg-gray-100">
+      {/* Header */}
+      <div className="flex flex-row gap-4 w-full items-center border-b px-4 py-3 bg-white shadow">
+        <Link href="/login">
+          <ArrowLeft />
+        </Link>
+        <h1 className="text-lg font-bold text-gray-800">
+          {otpSent ? "OTP Verification" : "Gym Registration"}
+        </h1>
+      </div>
 
-        // Password validation
-        if (!password) {
-            newErrors.password = "Password is required.";
-            isValid = false;
-        } else if (password.length < 6) {
-            newErrors.password = "Password must be at least 6 characters.";
-            isValid = false;
-        }
-
-        // Confirm password validation
-        if (!confirmPassword) {
-            newErrors.confirmPassword = "Confirm Password is required.";
-            isValid = false;
-        } else if (password !== confirmPassword) {
-            newErrors.confirmPassword = "Passwords do not match.";
-            isValid = false;
-        }
-
-        setErrors(newErrors);
-        return isValid;
-    };
-
-    // Handle signup with email and password
-    const handleSignup = async (e) => {
-        e.preventDefault();
-
-        // Validate form fields
-        if (!validateForm()) return;
-
-        setLoading(true); // Start loading
-        setErrors({ email: "", password: "", confirmPassword: "", firebase: "" }); // Clear previous errors
-
-        try {
-            // Create user with email and password
-            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            const user = userCredential.user;
-
-            console.log("User created:", user);
-
-            // Send verification email
-            await sendEmailVerification(user);
-            console.log("Verification email sent to:", user.email);
-
-            // Redirect to a page instructing the user to verify their email
-            router.push("/verifyEmail");
-        } catch (error) {
-            console.error("Error during signup:", error);
-            setErrors((prev) => ({
-                ...prev,
-                firebase: getHumanReadableError(error.code), // Show human-readable error message
-            }));
-        } finally {
-            setLoading(false); // Stop loading
-        }
-    };
-
-    // Continue with Google
-    const continueWithGoogle = async () => {
-        setLoading(true); // Start loading
-        setErrors({ email: "", password: "", confirmPassword: "", firebase: "" }); // Clear previous errors
-
-        const provider = new GoogleAuthProvider();
-        try {
-            const userInfo = await signInWithPopup(auth, provider);
-            const idToken = await userInfo.user.getIdToken();
-
-            // Send the request to set a cookie
-            const resp = await axios.get("/api/auth/cookieToken", {
-                headers: {
-                    Authorization: `Bearer ${idToken}`,
-                },
-            });
-
-            if (resp.status === 200) {
-                router.push("/");
-            }
-        } catch (error) {
-            console.error("Error during Google sign-in:", error);
-            setErrors((prev) => ({
-                ...prev,
-                firebase: getHumanReadableError(error.code), // Show human-readable error message
-            }));
-        } finally {
-            setLoading(false); // Stop loading
-        }
-    };
-
-    return (
-        <div className="flex flex-col min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-            {/* Header */}
-            <div className="flex items-center justify-center p-8">
-                <Image
-                    src="/logo.png" // Replace with your logo path
-                    alt="Logo"
-                    width={80}
-                    height={80}
-                    className="rounded-lg"
-                />
-            </div>
-
-            {/* Main Content */}
-            <div className="flex-1 flex flex-col justify-center px-6">
-                {/* Title */}
-                <h1 className="text-3xl font-bold text-gray-900 mb-8 text-center">
-                    Create an Account
-                </h1>
-
-                {/* Firebase Error Message */}
-                {errors.firebase && (
-                    <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-md text-sm text-center">
-                        {errors.firebase}
-                    </div>
-                )}
-
-                {/* Email, Password, and Confirm Password Form */}
-                <form onSubmit={handleSignup} className="space-y-4">
-                    {/* Email Field */}
-                    <div className="space-y-2">
-                        <Label htmlFor="email" className="text-gray-700">
-                            Email
-                        </Label>
-                        <Input
-                            id="email"
-                            type="email"
-                            placeholder="Enter your email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            className="w-full"
-                            disabled={loading} // Disable input while loading
-                        />
-                        {errors.email && (
-                            <p className="text-sm text-red-600">{errors.email}</p>
-                        )}
-                    </div>
-
-                    {/* Password Field */}
-                    <div className="space-y-2">
-                        <Label htmlFor="password" className="text-gray-700">
-                            Password
-                        </Label>
-                        <Input
-                            id="password"
-                            type="password"
-                            placeholder="Enter your password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            className="w-full"
-                            disabled={loading} // Disable input while loading
-                        />
-                        {errors.password && (
-                            <p className="text-sm text-red-600">{errors.password}</p>
-                        )}
-                    </div>
-
-                    {/* Confirm Password Field */}
-                    <div className="space-y-2">
-                        <Label htmlFor="confirmPassword" className="text-gray-700">
-                            Confirm Password
-                        </Label>
-                        <Input
-                            id="confirmPassword"
-                            type="password"
-                            placeholder="Confirm your password"
-                            value={confirmPassword}
-                            onChange={(e) => setConfirmPassword(e.target.value)}
-                            className="w-full"
-                            disabled={loading} // Disable input while loading
-                        />
-                        {errors.confirmPassword && (
-                            <p className="text-sm text-red-600">{errors.confirmPassword}</p>
-                        )}
-                    </div>
-
-                    {/* Sign Up Button */}
-                    <Button
-                        type="submit"
-                        className="w-full bg-blue-600 hover:bg-blue-700"
-                        disabled={loading} // Disable button while loading
-                    >
-                        {loading ? "Signing up..." : "Sign Up"}
-                    </Button>
-                </form>
-
-                {/* Divider */}
-                <div className="flex items-center justify-center my-6">
-                    <div className="flex-1 h-px bg-gray-300" />
-                    <span className="mx-4 text-sm text-gray-500">OR</span>
-                    <div className="flex-1 h-px bg-gray-300" />
-                </div>
-
-                {/* Continue with Google */}
-                <Button
-                    onClick={continueWithGoogle}
-                    variant="outline"
-                    className="w-full flex items-center justify-center space-x-2"
-                    disabled={loading} // Disable button while loading
-                >
-                    <Image
-                        src="/google_logo.webp" // Replace with your Google icon path
-                        alt="Google"
-                        width={20}
-                        height={20}
-                    />
-                    <span>{loading ? "Signing up..." : "Continue with Google"}</span>
-                </Button>
-
-                {/* Login Link */}
-                <div className="text-center text-sm text-gray-600 mt-6">
-                    Already have an account?{" "}
-                    <Link href="/login" className="text-blue-600 hover:underline">
-                        Login
-                    </Link>
-                </div>
-            </div>
-
-            {/* Footer */}
-            <div className="text-center text-sm text-gray-500 p-6">
-                By signing up, you agree to our{" "}
-                <Link href="/terms" className="text-blue-600 hover:underline">
-                    Terms of Service
-                </Link>{" "}
-                and{" "}
-                <Link href="/privacy" className="text-blue-600 hover:underline">
-                    Privacy Policy
-                </Link>
-                .
-            </div>
+      {/* OTP Verification Screen */}
+      {otpSent ? (
+        <div className="w-full max-w-md p-4 flex-1 flex flex-col bg-white shadow-md rounded-lg">
+          <p className="mb-4 text-center text-gray-600">
+            Please enter the OTP sent to your mobile number.
+          </p>
+          <div className="mb-6 flex justify-center">
+            <InputOTP maxLength={6} value={otp} onChange={setOtp}>
+              <InputOTPGroup>
+                <InputOTPSlot index={0} />
+                <InputOTPSlot index={1} />
+                <InputOTPSlot index={2} />
+              </InputOTPGroup>
+              <InputOTPSeparator />
+              <InputOTPGroup>
+                <InputOTPSlot index={3} />
+                <InputOTPSlot index={4} />
+                <InputOTPSlot index={5} />
+              </InputOTPGroup>
+            </InputOTP>
+          </div>
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+          <Button
+            onClick={handleVerifyOtp}
+            className="w-full h-12 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium"
+          >
+            {loading ? "Verifying..." : "Verify OTP"}
+          </Button>
         </div>
-    );
-};
+      ) : (
+        // Registration Form
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          className="w-full max-w-md space-y-4 p-4 flex-1 flex flex-col bg-white shadow-md rounded-lg"
+        >
+          {/* Gym Name */}
+          <div>
+            <Label htmlFor="gymName">Gym Name</Label>
+            <Input
+              id="gymName"
+              type="text"
+              {...register("gymName")}
+              placeholder="Enter Gym Name"
+              className="h-10 text-sm"
+            />
+            {errors.gymName && (
+              <p className="text-red-500 text-xs mt-1">{errors.gymName.message}</p>
+            )}
+          </div>
 
-export default Signup;
+          {/* Owner Name */}
+          <div>
+            <Label htmlFor="ownerName">Owner Name</Label>
+            <Input
+              id="ownerName"
+              type="text"
+              {...register("ownerName")}
+              placeholder="Enter Owner Name"
+              className="h-10 text-sm"
+            />
+            {errors.ownerName && (
+              <p className="text-red-500 text-xs mt-1">{errors.ownerName.message}</p>
+            )}
+          </div>
+
+          {/* Mobile Number */}
+          <div>
+            <Label htmlFor="mobileNumber">Mobile Number</Label>
+            <Input
+              id="mobileNumber"
+              type="tel"
+              {...register("mobileNumber")}
+              placeholder="Enter Mobile Number"
+              className="h-10 text-sm"
+            />
+            {errors.mobileNumber && (
+              <p className="text-red-500 text-xs mt-1">{errors.mobileNumber.message}</p>
+            )}
+          </div>
+
+          {/* Address */}
+          <div>
+            <Label htmlFor="address">Address</Label>
+            <Textarea
+              id="address"
+              {...register("address")}
+              placeholder="Enter Address"
+              className="h-24 text-sm"
+            />
+            {errors.address && (
+              <p className="text-red-500 text-xs mt-1">{errors.address.message}</p>
+            )}
+          </div>
+
+          <Button
+            type="submit"
+            className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium"
+          >
+            {loading ? "Submitting..." : "Register Gym"}
+          </Button>
+        </form>
+      )}
+    </div>
+  );
+}

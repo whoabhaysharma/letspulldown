@@ -1,7 +1,6 @@
 import axios from "axios";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge"
-import supabaseAdmin from "./supabase";
 
 export function cn(...inputs) {
   return twMerge(clsx(inputs));
@@ -35,28 +34,4 @@ export const getSession = async (sessionToken) => {
     console.error("Session validation failed:", error.response?.data || error.message);
     throw new Error(error.response?.data?.error || "Failed to validate session");
   }
-}
-
-export const isUserAvailableWithPhone = async (phone) => {
-  if(!phone) return false
-
-  try {
-    const { data, error } = await supabaseAdmin
-      .from('users')
-      .select('id') // Fetch only the necessary field for efficiency
-      .eq('phone', phone)
-      .limit(1)
-      .single(); // Fetch a single record if exists
-
-    if (error && error.code !== 'PGRST116') {
-      console.error('Error fetching user:', error);
-      return false;
-    }
-
-    return !!data; // Returns true if user exists, false otherwise
-  } catch (err) {
-    console.error('Unexpected error:', err);
-    return false;
-  }
-
 }
